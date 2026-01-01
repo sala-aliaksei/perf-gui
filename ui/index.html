@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Perf GUI Prototype</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+    header { padding: 16px; background: #111827; border-bottom: 1px solid #1f2937; display: flex; gap: 12px; align-items: center; }
+    main { display: grid; grid-template-columns: 2fr 1.2fr; grid-template-rows: auto auto 1fr; gap: 12px; padding: 16px; }
+    section { background: #111827; border: 1px solid #1f2937; border-radius: 8px; padding: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+    h2 { margin: 0 0 8px 0; font-size: 16px; color: #93c5fd; }
+    table { width: 100%; border-collapse: collapse; color: #e2e8f0; }
+    th, td { padding: 6px 8px; border-bottom: 1px solid #1f2937; text-align: left; font-size: 13px; }
+    th { color: #cbd5f5; }
+    .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+    .chip { padding: 4px 8px; background: #1f2937; border: 1px solid #2f3b52; border-radius: 999px; font-size: 12px; }
+    .timeline { height: 160px; display: flex; gap: 4px; align-items: flex-end; }
+    .bar { background: linear-gradient(180deg, #38bdf8, #0ea5e9); width: 8px; }
+    .stack { font-family: "SFMono-Regular", monospace; background: #0b1221; padding: 8px; border-radius: 6px; border: 1px solid #1f2937; max-height: 220px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 style="margin:0; font-size:20px;">Perf GUI Prototype</h1>
+    <div id="run-info"></div>
+    <div class="chips" id="filters"></div>
+  </header>
+  <main>
+    <section style="grid-column: span 2;">
+      <h2>Timeline (cycles)</h2>
+      <div class="timeline" id="timeline"></div>
+    </section>
+    <section>
+      <h2>Hotspots</h2>
+      <table id="hotspots"></table>
+    </section>
+    <section>
+      <h2>Flamegraph (top-down)</h2>
+      <div class="stack" id="flame"></div>
+    </section>
+    <section style="grid-column: span 2;">
+      <h2>Raw JSON</h2>
+      <pre class="stack" id="raw"></pre>
+    </section>
+  </main>
+
+  <script>
+    async function loadJSON(url) { const res = await fetch(url); return res.json(); }
+    function renderTimeline(points) {
+      const timeline = document.getElementById('timeline');
+      timeline.innerHTML = '';
+      const max = Math.max(...points.map(p => p.value), 1);
+      points.forEach(p => {
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        bar.style.height = `${(p.value / max) * 140 + 10}px`;
+        bar.title = `${new Date(p.timestamp_ns/1e6).toISOString()} :: ${p.value}`;
+        timeline.appendChild(bar);
+      });
+    }
+    function renderHotspots(hotspots) {
+      const table = document.getElementById('hotspots');
+      table.innerHTML = '<tr><th>Function</th><th>Module</th><th>Samples</th><th>%</th></tr>' +
+        hotspots.map(h => `<tr><td>${h.function}</td><td>${h.module||''}</td><td>${h.samples}</td><td>${h.pct}</td></tr>`).join('');
+    }
+    function renderFlame(node, depth=0) {
+      let out = `${' '.repeat(depth*2)}- ${node.name} (${node.value})\n`;
+      (node.children || []).forEach(c => out += renderFlame(c, depth+1));
+      return out;
+    }
+
+    async function bootstrap() {
+      const runs = await loadJSON('http://localhost:8000/runs');
+      if (!runs.length) { document.getElementById('run-info').innerText = 'No runs found'; return; }
+      const run = runs[0];
+      document.getElementById('run-info').innerText = `${run.run_id} — ${run.command}`;
+      document.getElementById('filters').innerHTML = `<span class="chip">Host: ${run.hostname}</span>`;
+
+      const hotspots = await loadJSON(`http://localhost:8000/runs/${run.run_id}/hotspots`);
+      const timeline = await loadJSON(`http://localhost:8000/runs/${run.run_id}/timeline?event=cycles`);
+      const flame = await loadJSON(`http://localhost:8000/runs/${run.run_id}/flamegraph`);
+
+      renderHotspots(hotspots);
+      renderTimeline(timeline);
+      document.getElementById('flame').innerText = renderFlame(flame);
+      document.getElementById('raw').innerText = JSON.stringify({ hotspots, timeline, flame }, null, 2);
+    }
+
+    bootstrap();
+  </script>
+</body>
+</html>

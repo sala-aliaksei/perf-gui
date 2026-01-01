@@ -1,0 +1,14 @@
+[project]
+name = "perf-gui"
+version = "0.1.0"
+description = "Prototype perf-based performance analysis UI"
+authors = [{ name = "Perf GUI" }]
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+perf-gui-api = "perf_gui.server:main"
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
