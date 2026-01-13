@@ -1,0 +1,13 @@
+# sample perf script output
+1234.000001: cycles:  CPU=0 [1000] period=5 event=cycles ip=0x400610 symbol=mm_mul dso=matrix
+	foo:10
+	bar:20
+1234.000002: instructions:  CPU=0 [1000] period=3 event=instructions ip=0x400650 symbol=mm_mul dso=matrix
+	foo:10
+	bar:20
+1234.000003: cache-misses:  CPU=1 [1001] period=7 event=cache-misses ip=0x400700 symbol=mm_add dso=matrix
+	foo:30
+1234.000004: cycles:  CPU=1 [1001] period=4 event=cycles ip=0x400710 symbol=mm_add dso=matrix
+	foo:30
+1234.000005: branches:  CPU=1 [1001] period=9 event=branches ip=0x400720 symbol=mm_add dso=matrix
+	foo:30
